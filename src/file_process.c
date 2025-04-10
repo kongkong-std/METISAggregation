@@ -8,7 +8,7 @@ int TestFunctionMetis(DataMesh data)
     idx_t *eptr, *eind;
     idx_t ncommon, nparts;
     idx_t options[METIS_NOPTIONS];
-    idx_t *objval, *epart, *npart;
+    idx_t objval, *epart, *npart;
 
     ncommon = 2;
     nparts = 4;
@@ -46,16 +46,46 @@ int TestFunctionMetis(DataMesh data)
     }
 #endif
 
+    epart = (idx_t *)malloc(ne * sizeof(idx_t));
+    npart = (idx_t *)malloc(nn * sizeof(idx_t));
+    assert(epart && npart);
+
+    METIS_SetDefaultOptions(options);
+
+#if 0
     status = METIS_PartMeshDual(&ne, &nn,
-    eptr, eind,
-    NULL, NULL,
-    &ncommon, &nparts,
-    NULL, options,
-    objval, epart, npart);
+                                eptr, eind,
+                                NULL, NULL,
+                                &ncommon, &nparts,
+                                NULL, options,
+                                objval, epart, npart);
+#endif
+
+    status = METIS_PartMeshNodal(&ne, &nn,
+                                 eptr, eind,
+                                 NULL, NULL,
+                                 &nparts,
+                                 NULL, options,
+                                 &objval, epart, npart);
+
+    printf("status = %d, METIS_OK = %d\n", status, METIS_OK);
+    printf("partition objective value = %ld\n", objval);
+    printf("element partition:\n");
+    for(int index = 0; index < ne; ++index)
+    {
+        printf("epart[%d] = %ld\n", index, epart[index]);
+    }
+    printf("node partition:\n");
+    for(int index = 0; index < nn; ++index)
+    {
+        printf("npart[%d] = %ld\n", index, npart[index]);
+    }
 
     // free memory
     free(eptr);
     free(eind);
+    free(epart);
+    free(npart);
 
     return status;
 }
