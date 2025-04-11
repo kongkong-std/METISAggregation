@@ -48,6 +48,7 @@ typedef enum
 } Flag_Data_Block;
 
 // function prototype
+int TestMetisFunctionGmsh(DataGmsh data /*gmsh data*/);
 int NumNodeEleTypeMap(int type /*element type*/);
 void FileProcessGmsh(const char *path /*path to gmsh file*/,
                      DataGmsh *data /*gmsh data pointer*/);

@@ -32,28 +32,34 @@ int main(int argc, char **argv)
                    data_gmsh.coordinates[3 * index + 2]);
         }
         printf("number of elements in boundary: %d\n", data_gmsh.ne_bd);
-        for(int index = 0; index < data_gmsh.ne_bd + 1; ++index)
+        for (int index = 0; index < data_gmsh.ne_bd + 1; ++index)
         {
             printf("data_gmsh.eptr_bd[%d] = %ld\n", index, data_gmsh.eptr_bd[index]);
         }
         printf("number of elements in inner: %d\n", data_gmsh.ne_in);
-        for(int index = 0; index < data_gmsh.ne_in + 1; ++index)
+        for (int index = 0; index < data_gmsh.ne_in + 1; ++index)
         {
             printf("data_gmsh.eptr_in[%d] = %ld\n", index, data_gmsh.eptr_in[index]);
         }
         printf("nodes in inner elements:\n");
-        for(int index = 0; index < data_gmsh.ne_in; ++index)
+        for (int index = 0; index < data_gmsh.ne_in; ++index)
         {
             printf("element %d: ", index);
-            for(int index_i = 0; index_i < data_gmsh.nne_in; ++index_i)
+            for (int index_i = 0; index_i < data_gmsh.nne_in; ++index_i)
             {
                 printf("%ld\t", data_gmsh.eind_in[index * data_gmsh.nne_in + index_i]);
             }
             putchar('\n');
         }
 
+        TestMetisFunctionGmsh(data_gmsh);
+
         // free memory
         free(data_gmsh.coordinates);
+        free(data_gmsh.eptr_bd);
+        free(data_gmsh.eind_bd);
+        free(data_gmsh.eptr_in);
+        free(data_gmsh.eind_in);
     }
     else
     {

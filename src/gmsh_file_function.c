@@ -1,5 +1,61 @@
 #include "../include/main.h"
 
+int TestMetisFunctionGmsh(DataGmsh data)
+{
+    int status = 0;
+
+    idx_t ne = data.ne_in, nn = data.nn;
+    idx_t nparts = nn / 4;
+    idx_t options[METIS_NOPTIONS];
+    idx_t objval, *epart, *npart;
+
+    epart = (idx_t *)malloc(ne * sizeof(idx_t));
+    npart = (idx_t *)malloc(nn * sizeof(idx_t));
+    assert(epart && npart);
+
+    METIS_SetDefaultOptions(options);
+
+#if 0
+    for (int index = 0; index < ne + 1; ++index)
+    {
+        printf("data.eptr_in[%d] = %ld\n", index, data.eptr_in[index]);
+    }
+    for (int index = 0; index < data.eptr_in[ne]; ++index)
+    {
+        printf("data.eind_in[%d] = %ld\n", index, data.eind_in[index]);
+    }
+#endif // mesh csr format information
+
+    status = METIS_PartMeshNodal(&ne, &nn,
+                                 data.eptr_in, data.eind_in,
+                                 NULL, NULL,
+                                 &nparts,
+                                 NULL, options,
+                                 &objval, epart, npart);
+
+#if 1
+    puts("\n==== metis function result ====");
+    printf("status = %d, METIS_OK = %d\n", status, METIS_OK);
+    printf("partition objective value = %ld\n", objval);
+    printf("element partition:\n");
+    for (int index = 0; index < ne; ++index)
+    {
+        printf("epart[%d] = %ld\n", index, epart[index]);
+    }
+    printf("node partition:\n");
+    for (int index = 0; index < nn; ++index)
+    {
+        printf("npart[%d] = %ld\n", index, npart[index]);
+    }
+#endif // metis function result
+
+    // free memory
+    free(epart);
+    free(npart);
+
+    return status;
+}
+
 int NumNodeEleTypeMap(int ele_type /*element type*/)
 {
     int value = 0;
@@ -158,7 +214,6 @@ void FileProcessGmsh(const char *path /*path to gmsh file*/,
                     // last nn_ele_bd number in buffer
                     char *token;
                     char *last2[2] = {NULL, NULL}; // 保存最后两个token
-                    int count = 0;
 
                     token = strtok(buffer, " \t");
                     while (token != NULL)
@@ -167,14 +222,14 @@ void FileProcessGmsh(const char *path /*path to gmsh file*/,
                         last2[0] = last2[1];
                         last2[1] = token;
                         token = strtok(NULL, " \t");
-                        ++count;
                     }
 
                     int second_last = atoi(last2[0]);
                     int last = atoi(last2[1]);
 
-                    data->eind_bd[2 * line_ele_bd] = second_last;
-                    data->eind_bd[2 * line_ele_bd + 1] = last;
+                    // change to 0-base
+                    data->eind_bd[2 * line_ele_bd] = second_last - 1;
+                    data->eind_bd[2 * line_ele_bd + 1] = last - 1;
 
                     ++line_ele_bd;
                 }
@@ -185,7 +240,6 @@ void FileProcessGmsh(const char *path /*path to gmsh file*/,
                     // last nn_ele_bd number in buffer
                     char *token;
                     char *last3[3] = {NULL, NULL, NULL}; // 保存最后两个token
-                    int count = 0;
 
                     token = strtok(buffer, " \t");
                     while (token != NULL)
@@ -195,17 +249,16 @@ void FileProcessGmsh(const char *path /*path to gmsh file*/,
                         last3[1] = last3[2];
                         last3[2] = token;
                         token = strtok(NULL, " \t");
-                        ++count;
                     }
 
                     int third_last = atoi(last3[0]);
                     int second_last = atoi(last3[1]);
                     int last = atoi(last3[2]);
-                    printf("%d\t%d\t%d\n", third_last, second_last, last);
 
-                    data->eind_in[3 * line_ele_in] = third_last;
-                    data->eind_in[3 * line_ele_in + 1] = second_last;
-                    data->eind_in[3 * line_ele_in + 2] = last;
+                    // change to 0-base
+                    data->eind_in[3 * line_ele_in] = third_last - 1;
+                    data->eind_in[3 * line_ele_in + 1] = second_last - 1;
+                    data->eind_in[3 * line_ele_in + 2] = last - 1;
 
                     ++line_ele_in;
                 }
