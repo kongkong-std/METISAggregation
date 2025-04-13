@@ -5,13 +5,16 @@ int TestMetisFunctionGmsh(DataGmsh data)
     int status = 0;
 
     idx_t ne = data.ne_in, nn = data.nn;
-    idx_t nparts = nn / 4;
+    idx_t nparts = data.nparts;
     idx_t options[METIS_NOPTIONS];
-    idx_t objval, *epart, *npart;
+    idx_t objval;
+    // idx_t *epart, *npart;
 
+#if 0
     epart = (idx_t *)malloc(ne * sizeof(idx_t));
     npart = (idx_t *)malloc(nn * sizeof(idx_t));
     assert(epart && npart);
+#endif
 
     METIS_SetDefaultOptions(options);
 
@@ -31,7 +34,7 @@ int TestMetisFunctionGmsh(DataGmsh data)
                                  NULL, NULL,
                                  &nparts,
                                  NULL, options,
-                                 &objval, epart, npart);
+                                 &objval, data.epart_in, data.npart_in);
 
 #if 1
     puts("\n==== metis function result ====");
@@ -40,18 +43,21 @@ int TestMetisFunctionGmsh(DataGmsh data)
     printf("element partition:\n");
     for (int index = 0; index < ne; ++index)
     {
-        printf("epart[%d] = %ld\n", index, epart[index]);
+        printf("epart[%d] = %ld\n", index, data.epart_in[index]);
     }
     printf("node partition:\n");
     for (int index = 0; index < nn; ++index)
     {
-        printf("npart[%d] = %ld\n", index, npart[index]);
+        // printf("npart[%d] = %ld\n", index, npart[index]);
+        printf("%ld\n", data.npart_in[index]);
     }
 #endif // metis function result
 
+#if 0
     // free memory
     free(epart);
     free(npart);
+#endif
 
     return status;
 }
@@ -276,6 +282,11 @@ void FileProcessGmsh(const char *path /*path to gmsh file*/,
     data->ne_in = line_ele_in;
     data->nne_bd = nn_ele_bd;
     data->nne_in = nn_ele_in;
+    data->nparts = data->nn / 4;
+
+    data->epart_in = (idx_t *)malloc(data->ne_in * sizeof(idx_t));
+    data->npart_in = (idx_t *)malloc(data->nn * sizeof(idx_t));
+    assert(data->epart_in && data->npart_in);
 
     fclose(fp);
 }

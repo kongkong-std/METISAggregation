@@ -60,6 +60,8 @@ int main(int argc, char **argv)
         free(data_gmsh.eind_bd);
         free(data_gmsh.eptr_in);
         free(data_gmsh.eind_in);
+        free(data_gmsh.epart_in);
+        free(data_gmsh.npart_in);
     }
     else
     {
