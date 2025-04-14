@@ -2,6 +2,8 @@
 
 int main(int argc, char **argv)
 {
+    //TestMetis();
+
     char *path_mesh = NULL;
     char *type = NULL;
     for (int index = 0; index < argc; ++index)
@@ -21,6 +23,7 @@ int main(int argc, char **argv)
         DataGmsh data_gmsh;
         FileProcessGmsh(path_mesh, &data_gmsh);
 
+#if 0
         puts("\n==== gmsh data information ====");
         printf("number of nodes: %d\n", data_gmsh.nn);
         printf("number of elements: %d\n", data_gmsh.ne);
@@ -51,8 +54,68 @@ int main(int argc, char **argv)
             }
             putchar('\n');
         }
+#endif // gmsh data information
 
         TestMetisFunctionGmsh(data_gmsh);
+
+#if 0
+        puts("==== partition information ====");
+        puts("element partitions:");
+        for (int index = 0; index < data_gmsh.ne_in; ++index)
+        {
+            printf("data_gmsh.epart_in[%d] = %ld\n", index, data_gmsh.epart_in[index]);
+        }
+        puts("\nnode partitions:");
+        for (int index = 0; index < data_gmsh.nn; ++index)
+        {
+            printf("data_gmsh.npart_in[%d] = %ld\n", index, data_gmsh.npart_in[index]);
+        }
+#endif // partition information
+
+        // building coarse level
+        DataGmsh coarse_data_gmsh;
+        GmshCoarseLevelGenerator(&coarse_data_gmsh, &data_gmsh);
+
+#if 0
+        puts("\n==== coarse level mesh information ====");
+        //printf("number of nodes: %d\n", coarse_data_gmsh.nn);
+        puts("$Nodes");
+        for (int index = 0; index < coarse_data_gmsh.nn; ++index)
+        {
+            printf("%d\t%021.16le\t%021.16le\t%021.16le\n", index,
+                   coarse_data_gmsh.coordinates[3 * index],
+                   coarse_data_gmsh.coordinates[3 * index + 1],
+                   coarse_data_gmsh.coordinates[3 * index + 2]);
+        }
+        /*
+        printf("number of elements: %d\n", coarse_data_gmsh.ne_in);
+        for (int index = 0; index < coarse_data_gmsh.ne_in + 1; ++index)
+        {
+            printf("coarse_eptr[%d] = %ld\n", index, coarse_data_gmsh.eptr_in[index]);
+        }
+        */
+       puts("$Adjacency");
+        for (int index = 0; index < coarse_data_gmsh.nn; ++index)
+        {
+            idx_t index_start = coarse_data_gmsh.eptr_in[index];
+            idx_t index_end = coarse_data_gmsh.eptr_in[index + 1];
+            //printf("node %d: ", index);
+            printf("%d\t", index);
+            for (idx_t index_i = index_start; index_i < index_end; ++index_i)
+            {
+                printf("%ld\t", coarse_data_gmsh.eind_in[index_i]);
+            }
+            putchar('\n');
+        }
+#endif
+
+        TestMetisFunctionGraph(coarse_data_gmsh);
+        puts("\n==== graph partition of coarse level ====");
+        for (int index = 0; index < coarse_data_gmsh.nn; ++index)
+        {
+            printf("coarse_data_gmsh.npart_in[%d] = %ld\n", index,
+                   coarse_data_gmsh.npart_in[index]);
+        }
 
         // free memory
         free(data_gmsh.coordinates);
@@ -62,8 +125,13 @@ int main(int argc, char **argv)
         free(data_gmsh.eind_in);
         free(data_gmsh.epart_in);
         free(data_gmsh.npart_in);
+
+        free(coarse_data_gmsh.coordinates);
+        free(coarse_data_gmsh.eptr_in);
+        free(coarse_data_gmsh.eind_in);
+        free(coarse_data_gmsh.npart_in);
     }
-    else
+    else if (strcmp(type, "default") == 0)
     {
         DataMesh data_mesh;
         FileProcessMesh(path_mesh, &data_mesh);

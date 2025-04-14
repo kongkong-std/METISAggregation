@@ -1,5 +1,55 @@
 #include "../include/main.h"
 
+void TestMetis(void)
+{
+    int status = 0;
+
+    idx_t nvtxs = 15, ncon = 1, nparts = 4;
+    idx_t xadj[] = {0, 2, 5, 8, 11, 13, 16, 20, 24, 28, 31, 33, 36, 39, 42, 44};
+    idx_t adjncy[] = {1, 5, 0, 2, 6, 1, 3, 7, 2, 4, 8, 3, 9, 0, 6, 10, 1, 5, 7, 11, 2, 6, 8, 12, 3, 7, 9, 13, 4, 8, 14, 5, 11, 6, 10, 12, 7, 11, 13, 8, 12, 14, 9, 13};
+    idx_t ne = 8, nn = 15;
+    idx_t eptr[] = {0, 4, 8, 12, 16, 20, 24, 28, 32};
+    idx_t eind[] = {0, 5, 6, 1, 1, 6, 7, 2, 2, 7, 8, 3, 3, 8, 9, 4, 5, 10, 11, 6, 6, 11, 12, 7, 1, 12, 13, 8, 8, 13, 14, 9};
+    idx_t options[METIS_NOPTIONS];
+    idx_t edgecut, objval;
+
+    puts("\n==== test METIS_PartGraphKway ====");
+    METIS_SetDefaultOptions(options);
+    idx_t part[15];
+    status = METIS_PartGraphKway(&nvtxs, &ncon,
+                                 xadj, adjncy,
+                                 NULL, NULL, NULL,
+                                 &nparts,
+                                 NULL, NULL,
+                                 options,
+                                 &edgecut, part);
+    printf("status = %d, METIS_OK = %d\n", status, METIS_OK);
+    for(int index = 0; index < 15; ++index)
+    {
+        printf("part[%d] = %ld\n", index, part[index]);
+    }
+
+    puts("\n==== test METIS_PartMeshNodal ====");
+    status = METIS_SetDefaultOptions(options);
+    idx_t epart[8], npart[15];
+    METIS_PartMeshNodal(&ne, &nn,
+                        eptr, eind,
+                        NULL, NULL,
+                        &nparts,
+                        NULL,
+                        options,
+                        &objval, epart, npart);
+    printf("status = %d, METIS_OK = %d\n", status, METIS_OK);
+    for(int index = 0; index < 8; ++index)
+    {
+        printf("epart[%d] = %ld\n", index, epart[index]);
+    }
+    for(int index = 0; index < 15; ++index)
+    {
+        printf("npart[%d] = %ld\n", index, npart[index]);
+    }
+}
+
 int TestFunctionMetis(DataMesh data)
 {
     int status = 0;
@@ -71,12 +121,12 @@ int TestFunctionMetis(DataMesh data)
     printf("status = %d, METIS_OK = %d\n", status, METIS_OK);
     printf("partition objective value = %ld\n", objval);
     printf("element partition:\n");
-    for(int index = 0; index < ne; ++index)
+    for (int index = 0; index < ne; ++index)
     {
         printf("epart[%d] = %ld\n", index, epart[index]);
     }
     printf("node partition:\n");
-    for(int index = 0; index < nn; ++index)
+    for (int index = 0; index < nn; ++index)
     {
         printf("npart[%d] = %ld\n", index, npart[index]);
     }
