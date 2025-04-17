@@ -26,7 +26,7 @@ void TestMetis(void)
     printf("status = %d, METIS_OK = %d\n", status, METIS_OK);
     for(int index = 0; index < 15; ++index)
     {
-        printf("part[%d] = %ld\n", index, part[index]);
+        printf("part[%d] = %" PRIDX "\n", index, part[index]);
     }
 
     puts("\n==== test METIS_PartMeshNodal ====");
@@ -42,11 +42,11 @@ void TestMetis(void)
     printf("status = %d, METIS_OK = %d\n", status, METIS_OK);
     for(int index = 0; index < 8; ++index)
     {
-        printf("epart[%d] = %ld\n", index, epart[index]);
+        printf("epart[%d] = %" PRIDX "\n", index, epart[index]);
     }
     for(int index = 0; index < 15; ++index)
     {
-        printf("npart[%d] = %ld\n", index, npart[index]);
+        printf("npart[%d] = %" PRIDX "\n", index, npart[index]);
     }
 }
 
@@ -56,11 +56,11 @@ int TestFunctionMetis(DataMesh data)
 
     idx_t ne = data.ne, nn = data.nn;
     idx_t *eptr, *eind;
-    idx_t ncommon, nparts;
+    idx_t nparts;
     idx_t options[METIS_NOPTIONS];
     idx_t objval, *epart, *npart;
 
-    ncommon = 2;
+    //ncommon = 2;
     nparts = 4;
 
     eptr = (idx_t *)malloc((ne + 1) * sizeof(idx_t));
@@ -119,16 +119,16 @@ int TestFunctionMetis(DataMesh data)
                                  &objval, epart, npart);
 
     printf("status = %d, METIS_OK = %d\n", status, METIS_OK);
-    printf("partition objective value = %ld\n", objval);
+    printf("partition objective value = %" PRIDX "\n", objval);
     printf("element partition:\n");
     for (int index = 0; index < ne; ++index)
     {
-        printf("epart[%d] = %ld\n", index, epart[index]);
+        printf("epart[%d] = %" PRIDX "\n", index, epart[index]);
     }
     printf("node partition:\n");
     for (int index = 0; index < nn; ++index)
     {
-        printf("npart[%d] = %ld\n", index, npart[index]);
+        printf("npart[%d] = %" PRIDX "\n", index, npart[index]);
     }
 
     // free memory

@@ -8,7 +8,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <metis.h>
-#include <GKlib.h>
+//#include <GKlib.h>
 #include <cjson/cJSON.h>
 #include <assert.h>
 

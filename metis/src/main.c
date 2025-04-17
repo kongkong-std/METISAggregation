@@ -2,7 +2,7 @@
 
 int main(int argc, char **argv)
 {
-    //TestMetis();
+    TestMetis();
 
     char *path_mesh = NULL;
     char *type = NULL;
@@ -23,7 +23,7 @@ int main(int argc, char **argv)
         DataGmsh data_gmsh;
         FileProcessGmsh(path_mesh, &data_gmsh);
 
-#if 0
+#if 1
         puts("\n==== gmsh data information ====");
         printf("number of nodes: %d\n", data_gmsh.nn);
         printf("number of elements: %d\n", data_gmsh.ne);
@@ -37,12 +37,12 @@ int main(int argc, char **argv)
         printf("number of elements in boundary: %d\n", data_gmsh.ne_bd);
         for (int index = 0; index < data_gmsh.ne_bd + 1; ++index)
         {
-            printf("data_gmsh.eptr_bd[%d] = %ld\n", index, data_gmsh.eptr_bd[index]);
+            printf("data_gmsh.eptr_bd[%d] = %" PRIDX "\n", index, data_gmsh.eptr_bd[index]);
         }
         printf("number of elements in inner: %d\n", data_gmsh.ne_in);
         for (int index = 0; index < data_gmsh.ne_in + 1; ++index)
         {
-            printf("data_gmsh.eptr_in[%d] = %ld\n", index, data_gmsh.eptr_in[index]);
+            printf("data_gmsh.eptr_in[%d] = %" PRIDX "\n", index, data_gmsh.eptr_in[index]);
         }
         printf("nodes in inner elements:\n");
         for (int index = 0; index < data_gmsh.ne_in; ++index)
@@ -50,7 +50,7 @@ int main(int argc, char **argv)
             printf("element %d: ", index);
             for (int index_i = 0; index_i < data_gmsh.nne_in; ++index_i)
             {
-                printf("%ld\t", data_gmsh.eind_in[index * data_gmsh.nne_in + index_i]);
+                printf("%" PRIDX "\t", data_gmsh.eind_in[index * data_gmsh.nne_in + index_i]);
             }
             putchar('\n');
         }
@@ -58,17 +58,17 @@ int main(int argc, char **argv)
 
         TestMetisFunctionGmsh(data_gmsh);
 
-#if 0
+#if 1
         puts("==== partition information ====");
         puts("element partitions:");
         for (int index = 0; index < data_gmsh.ne_in; ++index)
         {
-            printf("data_gmsh.epart_in[%d] = %ld\n", index, data_gmsh.epart_in[index]);
+            printf("data_gmsh.epart_in[%d] = %" PRIDX "\n", index, data_gmsh.epart_in[index]);
         }
         puts("\nnode partitions:");
         for (int index = 0; index < data_gmsh.nn; ++index)
         {
-            printf("data_gmsh.npart_in[%d] = %ld\n", index, data_gmsh.npart_in[index]);
+            printf("data_gmsh.npart_in[%d] = %" PRIDX "\n", index, data_gmsh.npart_in[index]);
         }
 #endif // partition information
 
@@ -76,7 +76,7 @@ int main(int argc, char **argv)
         DataGmsh coarse_data_gmsh;
         GmshCoarseLevelGenerator(&coarse_data_gmsh, &data_gmsh);
 
-#if 0
+#if 1
         puts("\n==== coarse level mesh information ====");
         //printf("number of nodes: %d\n", coarse_data_gmsh.nn);
         puts("$Nodes");
@@ -103,7 +103,7 @@ int main(int argc, char **argv)
             printf("%d\t", index);
             for (idx_t index_i = index_start; index_i < index_end; ++index_i)
             {
-                printf("%ld\t", coarse_data_gmsh.eind_in[index_i]);
+                printf("%" PRIDX "\t", coarse_data_gmsh.eind_in[index_i]);
             }
             putchar('\n');
         }
@@ -113,7 +113,7 @@ int main(int argc, char **argv)
         puts("\n==== graph partition of coarse level ====");
         for (int index = 0; index < coarse_data_gmsh.nn; ++index)
         {
-            printf("coarse_data_gmsh.npart_in[%d] = %ld\n", index,
+            printf("coarse_data_gmsh.npart_in[%d] = %" PRIDX "\n", index,
                    coarse_data_gmsh.npart_in[index]);
         }
 
