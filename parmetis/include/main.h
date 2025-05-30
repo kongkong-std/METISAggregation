@@ -7,9 +7,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <mpi.h>
 #include <metis.h>
+#include <parmetis.h>
 //#include <GKlib.h>
-#include <cjson/cJSON.h>
 #include <assert.h>
 
 // struct

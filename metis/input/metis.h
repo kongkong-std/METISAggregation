@@ -1,4 +1,4 @@
-#define IDXTYPEWIDTH 64
+#define IDXTYPEWIDTH 32
 #define REALTYPEWIDTH 64
 /*!
 \file metis.h 
