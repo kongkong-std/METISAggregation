@@ -1,0 +1,25 @@
+==5293== Memcheck, a memory error detector
+==5293== Copyright (C) 2002-2024, and GNU GPL'd, by Julian Seward et al.
+==5293== Using Valgrind-3.24.0 and LibVEX; rerun with -h for copyright info
+==5293== Command: mpirun -np 1 ./app_parmetis_exe -mesh ../input/test-mesh-tri.txt
+==5293== 
+path to mesh file: ../input/test-mesh-tri.txt
+global nn = 15, global ne = 16
+in rank 0, mesh information
+number of local nodes is 15
+vtxdist value:	0	15	
+
+value of xadj:	0	3	7	11	15	17	21	27	33	39	43	45	49	53	57	60	
+
+value of adjncy:	8	9	13	1417263032	32658	1417263032	32658	1417263032	32658	1417263032	32658	1417263032	32658	1417263032	32658	1417263032	32658	1417263032	32658	1417263032	32658	1417263032	32658	1417263032	32658	0	0	1417263032	32658	1417263032	32658	0	0	1417263080	32658	1417263080	32658	0	0	1417263032	32658	1417263032	32658	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	
+----
+
+==5293== 
+==5293== HEAP SUMMARY:
+==5293==     in use at exit: 0 bytes in 0 blocks
+==5293==   total heap usage: 1,464 allocs, 1,464 frees, 1,852,972 bytes allocated
+==5293== 
+==5293== All heap blocks were freed -- no leaks are possible
+==5293== 
+==5293== For lists of detected and suppressed errors, rerun with: -s
+==5293== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)

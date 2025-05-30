@@ -220,8 +220,9 @@ int main(int argc, char **argv)
     MPI_Finalize();
     return 0;
 }
-#endif
+#endif // test api
 
+#if 0
 int main(int argc, char **argv)
 {
     int my_rank, nprocs;
@@ -332,6 +333,129 @@ int main(int argc, char **argv)
         }
     }
 #endif // print partition result
+
+    // free
+    free(part);
+    free(tpwgts);
+
+    MPI_Finalize();
+    return 0;
+}
+#endif // test-mesh api ParMETIS_V3_PartKway
+
+int main(int argc, char **argv)
+{
+    int my_rank, nprocs;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
+    MPI_Comm comm = MPI_COMM_WORLD;
+
+    char *path_mesh = NULL;
+    for (int index = 0; index < argc; ++index)
+    {
+        if (strstr("-mesh", argv[index]))
+        {
+            path_mesh = argv[index + 1];
+        }
+    }
+
+    DataMesh mesh_data;
+    idx_t num_local_node = 0;
+    idx_t *vtxdist = NULL;
+
+    vtxdist = (idx_t *)calloc(nprocs + 1, sizeof(idx_t));
+
+    if (my_rank == 0)
+    {
+        printf("path to mesh file: %s\n", path_mesh);
+
+        FileProcessMesh(path_mesh, &mesh_data);
+#if 0
+        for (int index = 0; index < mesh_data.ne; ++index)
+        {
+            printf("ele %d:\t%d\t%d\t%d\n", mesh_data.ele[index].ele_idx,
+                   mesh_data.ele[index].ele_node[0],
+                   mesh_data.ele[index].ele_node[1],
+                   mesh_data.ele[index].ele_node[2]);
+        }
+        puts("\n========\n");
+#endif // print mesh data
+        int base_num = mesh_data.nn / nprocs;
+        int remainder_num = mesh_data.nn % nprocs;
+        for (int index_p = 0; index_p < nprocs; ++index_p)
+        {
+            int count = base_num + (index_p < remainder_num ? 1 : 0);
+            vtxdist[index_p + 1] = vtxdist[index_p] + count;
+        }
+    }
+
+    MPI_Bcast(vtxdist, (nprocs + 1) * sizeof(idx_t), MPI_BYTE, 0, comm);
+    num_local_node = vtxdist[my_rank + 1] - vtxdist[my_rank];
+
+    MPI_Bcast(&mesh_data.nn, sizeof(int), MPI_BYTE, 0, comm);
+    MPI_Bcast(&mesh_data.ne, sizeof(int), MPI_BYTE, 0, comm);
+
+    if (my_rank != 0)
+    {
+        mesh_data.ele = (DataMeshEle *)malloc(mesh_data.ne * sizeof(DataMeshEle));
+        assert(mesh_data.ele);
+    }
+
+    MPI_Bcast(mesh_data.ele, mesh_data.ne * sizeof(DataMeshEle), MPI_BYTE, 0, comm);
+
+    idx_t *xadj = NULL, *adjncy = NULL;
+
+    CSRAdjGenerator(mesh_data.ele, mesh_data.ne, mesh_data.nn, vtxdist, my_rank, &xadj, &adjncy);
+
+    for (int index_p = 0; index_p < nprocs; ++index_p)
+    {
+        MPI_Barrier(comm);
+        if (my_rank == index_p)
+        {
+            printf("global nn = %d, global ne = %d\n", mesh_data.nn, mesh_data.ne);
+            printf("in rank %d, mesh information\n", my_rank);
+#if 0
+            for (int index = 0; index < mesh_data.ne; ++index)
+            {
+                printf("ele %d:\t%d\t%d\t%d\n", mesh_data.ele[index].ele_idx,
+                       mesh_data.ele[index].ele_node[0],
+                       mesh_data.ele[index].ele_node[1],
+                       mesh_data.ele[index].ele_node[2]);
+            }
+            // puts("\n========\n");
+#endif // print mesh data
+            printf("number of local nodes is %" PRIDX "\n", num_local_node);
+            printf("vtxdist value:\t");
+            for (int index = 0; index < nprocs + 1; ++index)
+            {
+                printf("%" PRIDX "\t", vtxdist[index]);
+            }
+            puts("\n");
+
+            printf("value of xadj:\t");
+            for(int index = 0; index < num_local_node + 1; ++index)
+            {
+                printf("%" PRIDX "\t", xadj[index]);
+            }
+            puts("\n");
+
+            printf("value of adjncy:\t");
+            for(int index = 0; index < xadj[num_local_node]; ++index)
+            {
+                printf("%" PRIDX "\t", adjncy[index]);
+            }
+
+            puts("\n----\n");
+        }
+    }
+
+    // free memory
+    free(adjncy);
+    free(xadj);
+    free(vtxdist);
+    free(mesh_data.ele);
 
     MPI_Finalize();
     return 0;

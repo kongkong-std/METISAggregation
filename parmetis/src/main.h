@@ -17,7 +17,8 @@ typedef struct
 {
     /* data */
     int ele_idx;
-    int ele_node[4]; // prescribed 4 nodes in each element
+    // int ele_node[4]; // prescribed 4 nodes in each element
+    int ele_node[3]; // prescribed 3 nodes in each element
 } DataMeshEle;
 
 typedef struct
@@ -28,7 +29,17 @@ typedef struct
 } DataMesh;
 
 // function prototype
+/*
+ * mesh topology file process
+ */
 int FileProcessMesh(const char *path /*path to mesh file*/,
                     DataMesh *data /*mesh data*/);
+
+/*
+ * csr adjacency generator
+ */
+int CSRAdjGenerator(const DataMeshEle *ele_data /*mesh topology data*/, int ne /*number of elements*/, int nn /*number of nodes*/,
+                    const idx_t *vtxdist /*node list*/, int my_rank /*rank id*/,
+                    idx_t **xadj /*csr row pointer*/, idx_t **adjncy /*adjacency nodes*/);
 
 #endif // main.h
