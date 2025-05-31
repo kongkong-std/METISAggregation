@@ -1,4 +1,11 @@
 path to mesh file: ../input/test-mesh-tri.txt
+Partitioning a graph of size 15 serially
+Savings from parallel remapping: 1
+      Setup: Max:   0.000, Sum:   0.000, Balance:   1.006
+      Remap: Max:   0.000, Sum:   0.000, Balance:   1.015
+      Total: Max:   0.001, Sum:   0.002, Balance:   1.001
+       Aux1: Max:   0.000, Sum:   0.000, Balance:   1.013
+Final   4-way Cut:     14 	Balance: 1.067 
 global nn = 15, global ne = 16
 in rank 0, mesh information
 number of local nodes is 4
@@ -7,6 +14,13 @@ vtxdist value:	0	4	8	12	15
 value of xadj:	0	3	7	11	15	
 
 value of adjncy:	1	5	6	0	2	6	7	1	3	7	8	2	4	8	9	
+
+metis_status = 1
+global node 0, part[0] = 0
+global node 1, part[1] = 0
+global node 2, part[2] = 1
+global node 3, part[3] = 3
+
 ----
 
 global nn = 15, global ne = 16
@@ -17,6 +31,13 @@ vtxdist value:	0	4	8	12	15
 value of xadj:	0	2	6	12	18	
 
 value of adjncy:	3	9	0	6	10	11	0	1	5	7	11	12	1	2	6	8	12	13	
+
+metis_status = 1
+global node 4, part[0] = 3
+global node 5, part[1] = 2
+global node 6, part[2] = 0
+global node 7, part[3] = 1
+
 ----
 
 global nn = 15, global ne = 16
@@ -27,6 +48,13 @@ vtxdist value:	0	4	8	12	15
 value of xadj:	0	6	10	12	16	
 
 value of adjncy:	2	3	7	9	13	14	3	4	8	14	5	11	5	6	10	12	
+
+metis_status = 1
+global node 8, part[0] = 1
+global node 9, part[1] = 3
+global node 10, part[2] = 2
+global node 11, part[3] = 2
+
 ----
 
 global nn = 15, global ne = 16
@@ -37,5 +65,11 @@ vtxdist value:	0	4	8	12	15
 value of xadj:	0	4	8	11	
 
 value of adjncy:	6	7	11	13	7	8	12	14	8	9	13	
+
+metis_status = 1
+global node 12, part[0] = 2
+global node 13, part[1] = 1
+global node 14, part[2] = 3
+
 ----
 

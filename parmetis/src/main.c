@@ -409,6 +409,37 @@ int main(int argc, char **argv)
 
     CSRAdjGenerator(mesh_data.ele, mesh_data.ne, mesh_data.nn, vtxdist, my_rank, &xadj, &adjncy);
 
+    // parmetis api
+    /*
+    * int __cdecl ParMETIS_V3_PartKway(
+             idx_t *vtxdist, idx_t *xadj, idx_t *adjncy, idx_t *vwgt,
+         idx_t *adjwgt, idx_t *wgtflag, idx_t *numflag, idx_t *ncon, idx_t *nparts,
+         real_t *tpwgts, real_t *ubvec, idx_t *options, idx_t *edgecut, idx_t *part,
+         MPI_Comm *comm);
+    */
+    idx_t wgtflag = 0;
+    idx_t numflag = 0, ncon = 1, nparts = 4;
+    real_t *tpwgts = NULL, ubvec = 1.05;
+
+    idx_t options[METIS_NOPTIONS];
+    METIS_SetDefaultOptions(options);
+
+    idx_t edgecut = 0;
+    idx_t *part = (idx_t *)malloc(num_local_node * sizeof(idx_t));
+    tpwgts = (real_t *)malloc(ncon * nparts * sizeof(real_t));
+    assert(part && tpwgts);
+
+    for (int index = 0; index < ncon * nparts; ++index)
+    {
+        tpwgts[index] = 1. / ncon / nparts;
+    }
+
+    int metis_status = ParMETIS_V3_PartKway(vtxdist, xadj, adjncy,
+                                            NULL, NULL, &wgtflag,
+                                            &numflag, &ncon, &nparts,
+                                            tpwgts, &ubvec, options,
+                                            &edgecut, part, &comm);
+
     for (int index_p = 0; index_p < nprocs; ++index_p)
     {
         MPI_Barrier(comm);
@@ -435,16 +466,23 @@ int main(int argc, char **argv)
             puts("\n");
 
             printf("value of xadj:\t");
-            for(int index = 0; index < num_local_node + 1; ++index)
+            for (int index = 0; index < num_local_node + 1; ++index)
             {
                 printf("%" PRIDX "\t", xadj[index]);
             }
             puts("\n");
 
             printf("value of adjncy:\t");
-            for(int index = 0; index < xadj[num_local_node]; ++index)
+            for (int index = 0; index < xadj[num_local_node]; ++index)
             {
                 printf("%" PRIDX "\t", adjncy[index]);
+            }
+            puts("\n");
+
+            printf("metis_status = %d\n", metis_status);
+            for (int index = 0; index < num_local_node; ++index)
+            {
+                printf("global node %" PRIDX ", part[%d] = %" PRIDX "\n", vtxdist[my_rank] + index, index, part[index]);
             }
 
             puts("\n----\n");
@@ -452,6 +490,8 @@ int main(int argc, char **argv)
     }
 
     // free memory
+    free(part);
+    free(tpwgts);
     free(adjncy);
     free(xadj);
     free(vtxdist);
