@@ -54,7 +54,7 @@ int CSRAdjGenerator(const DataMeshEle *ele_data /*mesh topology data*/, int ne /
         {
             if (mat_adj_tmp[index_mat_adj_tmp])
             {
-                (*adjncy_tmp)[cnt_adjncy_tmp] = index_mat_adj_tmp;
+                adjncy_tmp[index - vtxdist[my_rank]][cnt_adjncy_tmp] = index_mat_adj_tmp;
                 ++cnt_adjncy_tmp;
             }
         }
