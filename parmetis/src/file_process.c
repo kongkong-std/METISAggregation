@@ -1,149 +1,208 @@
-#include "main.h"
+#include "../include/main.h"
 
-static int CountTrueMatAdj(const bool *a, int n)
+#if 0
+void TestMetis(void)
 {
-    int value = 0;
+    int status = 0;
 
-    for (int index = 0; index < n; ++index)
+    idx_t nvtxs = 15, ncon = 1, nparts = 4;
+    idx_t xadj[] = {0, 2, 5, 8, 11, 13, 16, 20, 24, 28, 31, 33, 36, 39, 42, 44};
+    idx_t adjncy[] = {1, 5, 0, 2, 6, 1, 3, 7, 2, 4, 8, 3, 9, 0, 6, 10, 1, 5, 7, 11, 2, 6, 8, 12, 3, 7, 9, 13, 4, 8, 14, 5, 11, 6, 10, 12, 7, 11, 13, 8, 12, 14, 9, 13};
+    idx_t ne = 8, nn = 15;
+    idx_t eptr[] = {0, 4, 8, 12, 16, 20, 24, 28, 32};
+    idx_t eind[] = {0, 5, 6, 1, 1, 6, 7, 2, 2, 7, 8, 3, 3, 8, 9, 4, 5, 10, 11, 6, 6, 11, 12, 7, 1, 12, 13, 8, 8, 13, 14, 9};
+    idx_t options[METIS_NOPTIONS];
+    idx_t edgecut, objval;
+
+    puts("\n==== test METIS_PartGraphKway ====");
+    METIS_SetDefaultOptions(options);
+    idx_t part[15];
+    status = METIS_PartGraphKway(&nvtxs, &ncon,
+                                 xadj, adjncy,
+                                 NULL, NULL, NULL,
+                                 &nparts,
+                                 NULL, NULL,
+                                 options,
+                                 &edgecut, part);
+    printf("status = %d, METIS_OK = %d\n", status, METIS_OK);
+    for(int index = 0; index < 15; ++index)
     {
-        if (a[index])
-        {
-            ++value;
-        }
+        printf("part[%d] = %" PRIDX "\n", index, part[index]);
     }
 
-    return value;
+    puts("\n==== test METIS_PartMeshNodal ====");
+    status = METIS_SetDefaultOptions(options);
+    idx_t epart[8], npart[15];
+    METIS_PartMeshNodal(&ne, &nn,
+                        eptr, eind,
+                        NULL, NULL,
+                        &nparts,
+                        NULL,
+                        options,
+                        &objval, epart, npart);
+    printf("status = %d, METIS_OK = %d\n", status, METIS_OK);
+    for(int index = 0; index < 8; ++index)
+    {
+        printf("epart[%d] = %" PRIDX "\n", index, epart[index]);
+    }
+    for(int index = 0; index < 15; ++index)
+    {
+        printf("npart[%d] = %" PRIDX "\n", index, npart[index]);
+    }
 }
 
-int CSRAdjGenerator(const DataMeshEle *ele_data /*mesh topology data*/, int ne /*number of elements*/, int nn /*number of nodes*/,
-                    const idx_t *vtxdist /*node list*/,
-                    int my_rank /*rank id*/,
-                    idx_t **xadj /*csr row pointer*/, idx_t **adjncy /*adjacency nodes*/)
+int TestFunctionMetis(DataMesh data)
 {
-    idx_t local_nn = vtxdist[my_rank + 1] - vtxdist[my_rank];
+    int status = 0;
 
-    *xadj = (idx_t *)calloc(local_nn + 1, sizeof(idx_t));
-    bool *mat_adj_tmp = (bool *)calloc(nn, sizeof(bool));
-    int **adjncy_tmp = (int **)malloc(local_nn * sizeof(int *));
-    int *adjncy_tmp_len = (int *)malloc(local_nn * sizeof(int)); // record length of adjncy_tmp[i]
+    idx_t ne = data.ne, nn = data.nn;
+    idx_t *eptr, *eind;
+    idx_t nparts;
+    idx_t options[METIS_NOPTIONS];
+    idx_t objval, *epart, *npart;
 
-    assert(*xadj && mat_adj_tmp && adjncy_tmp && adjncy_tmp_len);
+    //ncommon = 2;
+    nparts = 4;
 
-    for (int index = vtxdist[my_rank]; index < vtxdist[my_rank + 1]; ++index)
+    eptr = (idx_t *)malloc((ne + 1) * sizeof(idx_t));
+    assert(eptr);
+
+    eptr[0] = 0;
+    for (int index = 0; index < ne; ++index)
     {
-        for (int index_e = 0; index_e < ne; ++index_e)
-        {
-            if (ele_data[index_e].ele_node[0] == index ||
-                ele_data[index_e].ele_node[1] == index ||
-                ele_data[index_e].ele_node[2] == index)
-            {
-                mat_adj_tmp[ele_data[index_e].ele_node[0]] = true;
-                mat_adj_tmp[ele_data[index_e].ele_node[1]] = true;
-                mat_adj_tmp[ele_data[index_e].ele_node[2]] = true;
-            }
-        }
-        mat_adj_tmp[index] = false;
-
-        int cnt_tmp = CountTrueMatAdj(mat_adj_tmp, nn);
-        (*xadj)[index - vtxdist[my_rank] + 1] = (*xadj)[index - vtxdist[my_rank]] + cnt_tmp;
-
-        adjncy_tmp[index - vtxdist[my_rank]] = (int *)malloc(cnt_tmp * sizeof(int));
-        adjncy_tmp_len[index - vtxdist[my_rank]] = cnt_tmp;
-        int cnt_adjncy_tmp = 0;
-        for (int index_mat_adj_tmp = 0; index_mat_adj_tmp < nn; ++index_mat_adj_tmp)
-        {
-            if (mat_adj_tmp[index_mat_adj_tmp])
-            {
-                adjncy_tmp[index - vtxdist[my_rank]][cnt_adjncy_tmp] = index_mat_adj_tmp;
-                ++cnt_adjncy_tmp;
-            }
-        }
-
-        memset(mat_adj_tmp, 0, nn * sizeof(bool));
+        eptr[index + 1] = eptr[index] + data.nn_ele[index];
     }
-
-    *adjncy = (idx_t *)malloc((*xadj)[local_nn] * sizeof(idx_t));
-    assert(*adjncy);
-
-    int index_adjncy = 0;
-    for (int index_i = 0; index_i < local_nn; ++index_i)
+#if 0
+    for (int index = 0; index < ne + 1; ++index)
     {
-        for (int index_j = 0; index_j < adjncy_tmp_len[index_i]; ++index_j)
+        printf("eptr[%d] = %d\n", index, eptr[index]);
+    }
+#endif
+
+    eind = (idx_t *)malloc(eptr[ne] * sizeof(idx_t));
+    assert(eind);
+    int cnt_eind = 0;
+    for (int index = 0; index < ne; ++index)
+    {
+        for (int index_i = 0; index_i < data.nn_ele[index]; ++index_i)
         {
-            (*adjncy)[index_adjncy] = adjncy_tmp[index_i][index_j];
-            ++index_adjncy;
+            eind[cnt_eind] = data.idx_node[index][index_i];
+            ++cnt_eind;
         }
+    }
+#if 0
+    for (int index = 0; index < eptr[ne]; ++index)
+    {
+        printf("eind[%d] = %d\n", index, eind[index]);
+    }
+#endif
+
+    epart = (idx_t *)malloc(ne * sizeof(idx_t));
+    npart = (idx_t *)malloc(nn * sizeof(idx_t));
+    assert(epart && npart);
+
+    METIS_SetDefaultOptions(options);
+
+#if 0
+    status = METIS_PartMeshDual(&ne, &nn,
+                                eptr, eind,
+                                NULL, NULL,
+                                &ncommon, &nparts,
+                                NULL, options,
+                                objval, epart, npart);
+#endif
+
+    status = METIS_PartMeshNodal(&ne, &nn,
+                                 eptr, eind,
+                                 NULL, NULL,
+                                 &nparts,
+                                 NULL, options,
+                                 &objval, epart, npart);
+
+    printf("status = %d, METIS_OK = %d\n", status, METIS_OK);
+    printf("partition objective value = %" PRIDX "\n", objval);
+    printf("element partition:\n");
+    for (int index = 0; index < ne; ++index)
+    {
+        printf("epart[%d] = %" PRIDX "\n", index, epart[index]);
+    }
+    printf("node partition:\n");
+    for (int index = 0; index < nn; ++index)
+    {
+        printf("npart[%d] = %" PRIDX "\n", index, npart[index]);
     }
 
     // free memory
-    free(adjncy_tmp_len);
-    for (int index = 0; index < local_nn; ++index)
-    {
-        free(adjncy_tmp[index]);
-    }
-    free(adjncy_tmp);
-    free(mat_adj_tmp);
+    free(eptr);
+    free(eind);
+    free(epart);
+    free(npart);
 
-    return 0;
+    return status;
 }
 
-int FileProcessMesh(const char *path /*path to mesh file*/,
-                    DataMesh *data /*mesh data*/)
+void FileProcessMesh(const char *path, DataMesh *data)
 {
     FILE *fp = fopen(path, "rb");
     assert(fp);
 
     int nn = 0, ne = 0;
-    fscanf(fp, " %d %d ", &nn, &ne);
-    data->nn = nn;
-    data->ne = ne;
+    char buffer[BUF_MAX_SIZE];
 
-    data->ele = (DataMeshEle *)malloc(ne * sizeof(DataMeshEle));
-    assert(data->ele);
-
-    for (int index = 0; index < ne; ++index)
-    {
-        fscanf(fp, " %d %d %d %d ", &data->ele[index].ele_idx,
-               data->ele[index].ele_node,
-               data->ele[index].ele_node + 1,
-               data->ele[index].ele_node + 2);
-    }
-
-    fclose(fp);
-
-    return 0;
-}
-
-#if 0
-int FileProcessMesh(const char *path /*path to mesh file*/,
-                    DataMesh *data /*mesh data*/)
-{
-    FILE *fp = fopen(path, "rb");
-    assert(fp);
-
-    char buffer[MAX_BUF_SIZE];
-
-    int nn = 0, ne = 0;
-    fgets(buffer, MAX_BUF_SIZE, fp);
+    fgets(buffer, BUF_MAX_SIZE, fp);
     sscanf(buffer, " %d %d ", &nn, &ne);
     data->nn = nn;
     data->ne = ne;
 
-    data->ele = (DataMeshEle *)malloc(ne * sizeof(DataMeshEle));
-    assert(data->ele);
+    data->idx_ele = (int *)malloc((ne + 1) * sizeof(int));
+    data->nn_ele = (int *)malloc(ne * sizeof(int));
+    data->idx_node = (int **)malloc(ne * sizeof(int *));
+    assert(data->idx_ele && data->nn_ele);
 
-    for (int index = 0; index < ne; ++index)
+    int cnt = 0;
+    while (fgets(buffer, BUF_MAX_SIZE, fp))
     {
-        fgets(buffer, MAX_BUF_SIZE, fp);
-        sscanf(buffer, " %d %d %d %d %d ", &((data->ele + index)->ele_idx),
-               (data->ele + index)->ele_node,
-               (data->ele + index)->ele_node + 1,
-               (data->ele + index)->ele_node + 2,
-               (data->ele + index)->ele_node + 3);
+        char tmp_buffer[BUF_MAX_SIZE];
+        memcpy(tmp_buffer, buffer, BUF_MAX_SIZE);
+        tmp_buffer[strcspn(tmp_buffer, "\n")] = '\0';
+        int count = 0;
+        char *token = strtok(tmp_buffer, " \t");
+        while (token != NULL)
+        {
+            ++count;
+            token = strtok(NULL, " \t");
+        }
+
+        data->nn_ele[cnt] = count - 1;
+
+        data->idx_node[cnt] = (int *)malloc((count - 1) * sizeof(int));
+        assert(data->idx_node[cnt]);
+
+        // First read the element index
+        char *p = buffer;
+        sscanf(p, "%d", &data->idx_ele[cnt]);
+
+        // Skip the element index
+        while (*p != ' ' && *p != '\t' && *p != '\0')
+            p++;
+        while (*p == ' ' || *p == '\t')
+            p++;
+
+        // Read the node indices
+        for (int i = 0; i < data->nn_ele[cnt]; i++)
+        {
+            sscanf(p, "%d", &data->idx_node[cnt][i]);
+
+            // Move to next number
+            while (*p != ' ' && *p != '\t' && *p != '\0')
+                p++;
+            while (*p == ' ' || *p == '\t')
+                p++;
+        }
+
+        ++cnt;
     }
 
     fclose(fp);
-
-    return 0;
 }
-#endif // 4 nodes in per element
+#endif // metis test mesh, serial implementation

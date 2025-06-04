@@ -10,13 +10,14 @@
 #include <mpi.h>
 #include <metis.h>
 #include <parmetis.h>
-//#include <GKlib.h>
+// #include <GKlib.h>
 #include <assert.h>
 
 // struct
 /*
  * mesh struct
  */
+#if 0
 typedef struct
 {
     /* data */
@@ -25,6 +26,31 @@ typedef struct
     int *nn_ele;    // number of nodes in element
     int **idx_node; // node index in element
 } DataMesh;
+#endif // metis test mesh, serial implementation
+
+typedef struct
+{
+    /* data */
+    int ele_idx;
+    int num_ele_node; // number of nodes in current element
+    int *ele_node;    // nodes list
+} DataMeshEle;
+
+typedef struct
+{
+    /* data */
+    int nn, ne;          // number of elements, nodes
+    int dim;             // dimension of coordinates, (1, 2 or 3)
+    double *coordinates; // coordinates of nodes
+    DataMeshEle *ele;    // element data
+} DataMesh;
+
+typedef struct
+{
+    DataMesh *solid; // solid element
+    DataMesh *shell; // shell element
+    DataMesh *beam;  // beam element
+} MeshInfo;
 
 /*
  * gmsh struct
@@ -53,7 +79,6 @@ typedef enum
 } Flag_Data_Block;
 
 // function prototype
-void TestMetis(void);    // metis demo test function
 int TestMetisFunctionGraph(DataGmsh data /*gmsh data*/);
 void GmshCoarseLevelGenerator(DataGmsh *coarse_data /*gmsh coarse level data pointer*/,
                               DataGmsh *fine_data /*gmsh fine level data pointer*/);
@@ -61,8 +86,11 @@ int TestMetisFunctionGmsh(DataGmsh data /*gmsh data*/);
 int NumNodeEleTypeMap(int type /*element type*/);
 void FileProcessGmsh(const char *path /*path to gmsh file*/,
                      DataGmsh *data /*gmsh data pointer*/);
+#if 0
 void FileProcessMesh(const char *path /*path to mesh file*/,
                      DataMesh *data /*mesh data pointer*/);
 int TestFunctionMetis(DataMesh data /*mesh data*/);
+void TestMetis(void);    // metis demo test function
+#endif // metis test mesh, serial implementation
 
 #endif // main.h
