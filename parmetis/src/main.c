@@ -18,10 +18,103 @@ int main(int argc, char **argv)
         }
     }
 
-    MeshInfo mesh_info;
+    DataMesh mesh_data;
+
+    if (my_rank == 0)
+    {
+        printf("mesh file path: %s\n", path_mesh);
+        FileProcessMesh(path_mesh, &mesh_data);
+
+#if 0
+        for (int index = 0; index < mesh_data.nn; ++index)
+        {
+            printf("node %d:\t%021.16le\t%021.16le\t%021.16le\n", index,
+                   mesh_data.coordinates[mesh_data.dim * index],
+                   mesh_data.coordinates[mesh_data.dim * index + 1],
+                   mesh_data.coordinates[mesh_data.dim * index + 2]);
+        }
+
+        for (int index = 0; index < mesh_data.ne_shell; ++index)
+        {
+            printf("element %d:\t", index);
+            for (int index_i = 0; index_i < mesh_data.ele_shell[index].num_ele_node; ++index_i)
+            {
+                printf("%d\t", mesh_data.ele_shell[index].ele_node[index_i]);
+            }
+            putchar('\n');
+        }
+#endif // mesh data, node and element
+    }
+
+    MPI_Bcast(&mesh_data.nn, 1, MPI_INT, 0, comm);
+    MPI_Bcast(&mesh_data.dim, 1, MPI_INT, 0, comm);
+    MPI_Bcast(&mesh_data.ne_shell, 1, MPI_INT, 0, comm);
+
+    if (my_rank != 0)
+    {
+        mesh_data.coordinates = (double *)malloc(mesh_data.dim * mesh_data.nn * sizeof(double));
+        mesh_data.ele_shell = (DataMeshEle *)malloc(mesh_data.ne_shell * sizeof(DataMeshEle));
+        assert(mesh_data.coordinates && mesh_data.ele_shell);
+    }
+    MPI_Bcast(mesh_data.coordinates, mesh_data.dim * mesh_data.nn, MPI_DOUBLE, 0, comm);
+    MPI_Bcast(mesh_data.ele_shell, mesh_data.ne_shell * sizeof(DataMeshEle), MPI_BYTE, 0, comm);
+
+    if (my_rank != 0)
+    {
+        for (int index = 0; index < mesh_data.ne_shell; ++index)
+        {
+            mesh_data.ele_shell[index].ele_node = (int *)malloc(mesh_data.ele_shell[index].num_ele_node * sizeof(int));
+            assert(mesh_data.ele_shell[index].ele_node);
+        }
+    }
+
+    for (int index = 0; index < mesh_data.ne_shell; ++index)
+    {
+        MPI_Bcast(mesh_data.ele_shell[index].ele_node, mesh_data.ele_shell[index].num_ele_node, MPI_INT, 0, comm);
+    }
+
+#if 1
+    for (int index_p = 0; index_p < nprocs; ++index_p)
+    {
+        MPI_Barrier(comm);
+        if (my_rank == index_p)
+        {
+            printf("in rank %d/%d:\n", my_rank, nprocs);
+            puts("nodes information");
+            for (int index = 0; index < mesh_data.nn; ++index)
+            {
+                printf("node %d:\t%021.16le\t%021.16le\t%021.16le\n", index,
+                       mesh_data.coordinates[mesh_data.dim * index],
+                       mesh_data.coordinates[mesh_data.dim * index + 1],
+                       mesh_data.coordinates[mesh_data.dim * index + 2]);
+            }
+
+            puts("\nelements information");
+            for (int index = 0; index < mesh_data.ne_shell; ++index)
+            {
+                printf("element %d:\t", index);
+                for (int index_i = 0; index_i < mesh_data.ele_shell[index_i].num_ele_node; ++index_i)
+                {
+                    printf("%d\t", mesh_data.ele_shell[index].ele_node[index_i]);
+                }
+                putchar('\n');
+            }
+
+            puts("\n\n========\n");
+        }
+    }
+#endif // print as my_rank ascending order
+
+    // free memory
+    for (int index = 0; index < mesh_data.ne_shell; ++index)
+    {
+        free(mesh_data.ele_shell[index].ele_node);
+    }
+    free(mesh_data.ele_shell);
+    free(mesh_data.coordinates);
 
     MPI_Finalize();
-    return 0
+    return 0;
 }
 
 #if 0

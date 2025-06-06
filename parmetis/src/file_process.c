@@ -1,5 +1,177 @@
 #include "../include/main.h"
 
+int FileProcessMesh(const char *path /*path to mesh file*/, DataMesh *mesh_data /*mesh data*/)
+{
+    FILE *fp = fopen(path, "rb");
+    assert(fp);
+
+    char buffer[BUF_MAX_SIZE];
+    FlagDataBlockGmsh current_status = NONE;
+
+    int line_node = 0, line_ele = 0;
+    DataMeshEle *ele_tmp = NULL;
+
+    while (fgets(buffer, BUF_MAX_SIZE, fp))
+    {
+        char tmp_buffer[BUF_MAX_SIZE];
+        if (buffer[0] == '$')
+        {
+            if (strstr(buffer, "$MeshFormat"))
+            {
+                current_status = MESH_FORMAT;
+            }
+            else if (strstr(buffer, "$PhysicalNames"))
+            {
+                current_status = PHYSICAL_NAMES;
+            }
+            else if (strstr(buffer, "$Nodes"))
+            {
+                current_status = NODES;
+            }
+            else if (strstr(buffer, "$Elements"))
+            {
+                current_status = ELEMENTS;
+            }
+            else
+            {
+                current_status = NONE;
+            }
+            continue;
+        }
+
+        switch (current_status)
+        {
+        case NODES:
+        {
+            /* code */
+            // printf("%s", buffer);
+            memcpy(tmp_buffer, buffer, BUF_MAX_SIZE);
+            tmp_buffer[strcspn(tmp_buffer, "\n")] = '\0';
+            int tmp_cnt = 0;
+            char *tmp_token = strtok(tmp_buffer, " \t");
+            while (tmp_token != NULL)
+            {
+                ++tmp_cnt;
+                tmp_token = strtok(NULL, " \t");
+            }
+
+            if (tmp_cnt == 1)
+            {
+                sscanf(buffer, "%d", &mesh_data->nn);
+                mesh_data->dim = 3;
+                mesh_data->coordinates = (double *)malloc(mesh_data->dim * mesh_data->nn * sizeof(double));
+                assert(mesh_data->coordinates);
+            }
+            else
+            {
+                sscanf(buffer, " %*d %lf %lf %lf ", mesh_data->coordinates + mesh_data->dim * line_node,
+                       mesh_data->coordinates + mesh_data->dim * line_node + 1,
+                       mesh_data->coordinates + mesh_data->dim * line_node + 2);
+                ++line_node;
+            }
+
+            break;
+        }
+
+        case ELEMENTS:
+        {
+            // printf("%s", buffer);
+            memcpy(tmp_buffer, buffer, BUF_MAX_SIZE);
+            tmp_buffer[strcspn(tmp_buffer, "\n")] = '\0';
+            int tmp_cnt = 0;
+            int tmp_array[256];
+            char *tmp_token = strtok(tmp_buffer, " \t");
+            while (tmp_token != NULL)
+            {
+                tmp_array[tmp_cnt] = atoi(tmp_token);
+                ++tmp_cnt;
+                tmp_token = strtok(NULL, " \t");
+            }
+
+            if (tmp_cnt == 1)
+            {
+                sscanf(buffer, "%d", &mesh_data->ne);
+                ele_tmp = (DataMeshEle *)malloc(mesh_data->ne * sizeof(DataMeshEle));
+                assert(ele_tmp);
+            }
+            else
+            {
+                sscanf(buffer, " %*d %d ", &ele_tmp[line_ele].ele_type);
+                ele_tmp[line_ele].num_ele_node = NumNodeEleTypeMap(ele_tmp[line_ele].ele_type);
+                ele_tmp[line_ele].ele_node = (int *)malloc(ele_tmp[line_ele].num_ele_node * sizeof(int));
+                assert(ele_tmp[line_ele].ele_node);
+
+                for (int index = 0; index < ele_tmp[line_ele].num_ele_node; ++index)
+                {
+                    ele_tmp[line_ele].ele_node[index] = tmp_array[tmp_cnt - ele_tmp[line_ele].num_ele_node + index] - 1; // 0-base
+                }
+
+                ++line_ele;
+            }
+
+            break;
+        }
+
+        default:
+            break;
+        }
+    }
+
+    fclose(fp);
+
+#if 0
+    for (int index = 0; index < mesh_data->ne; ++index)
+    {
+        printf("element %d:\t%d\t", index, ele_tmp[index].ele_type);
+        for (int index_i = 0; index_i < ele_tmp[index].num_ele_node; ++index_i)
+        {
+            printf("%d\t", ele_tmp[index].ele_node[index_i]);
+        }
+        putchar('\n');
+    }
+#endif // element data
+
+    int cnt_shell = 0;
+    for (int index = 0; index < mesh_data->ne; ++index)
+    {
+        if (ele_tmp[index].ele_type == 2)
+        {
+            // triangle mesh
+            ++cnt_shell;
+        }
+    }
+
+    mesh_data->ne_shell = cnt_shell;
+    mesh_data->ele_shell = (DataMeshEle *)malloc(mesh_data->ne_shell * sizeof(DataMeshEle));
+    assert(mesh_data->ele_shell);
+
+    cnt_shell = 0;
+    for (int index = 0; index < mesh_data->ne; ++index)
+    {
+        if (ele_tmp[index].ele_type == 2)
+        {
+            mesh_data->ele_shell[cnt_shell].ele_type = ele_tmp[index].ele_type;
+            mesh_data->ele_shell[cnt_shell].num_ele_node = ele_tmp[index].num_ele_node;
+
+            mesh_data->ele_shell[cnt_shell].ele_node = (int *)malloc(mesh_data->ele_shell[cnt_shell].num_ele_node * sizeof(int));
+            assert(mesh_data->ele_shell[cnt_shell].ele_node);
+
+            memcpy(mesh_data->ele_shell[cnt_shell].ele_node, ele_tmp[index].ele_node, mesh_data->ele_shell[cnt_shell].num_ele_node * sizeof(int));
+
+            ++cnt_shell;
+        }
+    }
+
+    // free memory
+    for (int index = 0; index < mesh_data->ne; ++index)
+    {
+        free(ele_tmp[index].ele_node);
+    }
+    free(ele_tmp);
+
+    return 0;
+}
+
 #if 0
 void TestMetis(void)
 {

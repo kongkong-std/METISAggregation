@@ -31,7 +31,7 @@ typedef struct
 typedef struct
 {
     /* data */
-    int ele_idx;
+    int ele_type;
     int num_ele_node; // number of nodes in current element
     int *ele_node;    // nodes list
 } DataMeshEle;
@@ -39,18 +39,25 @@ typedef struct
 typedef struct
 {
     /* data */
-    int nn, ne;          // number of elements, nodes
-    int dim;             // dimension of coordinates, (1, 2 or 3)
-    double *coordinates; // coordinates of nodes
-    DataMeshEle *ele;    // element data
+    int nn, ne;             // number of elements, nodes
+    int dim;                // dimension of coordinates, (1, 2 or 3)
+    double *coordinates;    // coordinates of nodes
+    int ne_solid, ne_shell, ne_beam;    // number of solid, shell, beam element
+    DataMeshEle *ele_solid; // solid element data
+    DataMeshEle *ele_shell; // shell element data
+    DataMeshEle *ele_beam;  // beam element data
 } DataMesh;
 
-typedef struct
+#if 0
+typedef enum
 {
-    DataMesh *solid; // solid element
-    DataMesh *shell; // shell element
-    DataMesh *beam;  // beam element
-} MeshInfo;
+    NONE,           // 0
+    MESH_FORMAT,    // 1
+    PHYSICAL_NAMES, // 2
+    NODES,          // 3
+    ELEMENTS        // 4
+} FlagDataBlockGmsh;
+#endif    // gmsh flag
 
 /*
  * gmsh struct
@@ -78,7 +85,16 @@ typedef enum
     ELEMENTS        // 4
 } Flag_Data_Block;
 
+typedef Flag_Data_Block FlagDataBlockGmsh;
+
 // function prototype
+/*
+ * mesh data file
+ *     1. gmsh file
+ *     2. comsol mesh file
+ */
+int FileProcessMesh(const char *path /*path to mesh file*/, DataMesh *mesh_data /*mesh data*/);
+
 int TestMetisFunctionGraph(DataGmsh data /*gmsh data*/);
 void GmshCoarseLevelGenerator(DataGmsh *coarse_data /*gmsh coarse level data pointer*/,
                               DataGmsh *fine_data /*gmsh fine level data pointer*/);
