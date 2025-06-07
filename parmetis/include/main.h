@@ -39,25 +39,27 @@ typedef struct
 typedef struct
 {
     /* data */
-    int nn, ne;             // number of elements, nodes
-    int dim;                // dimension of coordinates, (1, 2 or 3)
-    double *coordinates;    // coordinates of nodes
-    int ne_solid, ne_shell, ne_beam;    // number of solid, shell, beam element
-    DataMeshEle *ele_solid; // solid element data
-    DataMeshEle *ele_shell; // shell element data
-    DataMeshEle *ele_beam;  // beam element data
+    int nn, ne;                      // number of elements, nodes
+    int dim;                         // dimension of coordinates, (1, 2 or 3)
+    double *coordinates;             // coordinates of nodes
+    int ne_solid, ne_shell, ne_beam; // number of solid, shell, beam element
+    DataMeshEle *ele_solid;          // solid element data
+    DataMeshEle *ele_shell;          // shell element data
+    DataMeshEle *ele_beam;           // beam element data
 } DataMesh;
 
-#if 0
-typedef enum
+typedef struct
 {
-    NONE,           // 0
-    MESH_FORMAT,    // 1
-    PHYSICAL_NAMES, // 2
-    NODES,          // 3
-    ELEMENTS        // 4
-} FlagDataBlockGmsh;
-#endif    // gmsh flag
+    /* data */
+    int nn;              // number of nodes
+    int dim;             // dimensions
+    double *coordinates; // coordinates of nodes
+    idx_t *vtxdist;      // parmetis vtxdist parameter, global node indicies
+    idx_t *xadj;         // csr row pointer
+    idx_t *adjncy;       // adjacency nodes list
+    idx_t nparts;        // number of super nodes (partitions)
+    idx_t *part;         // partition value
+} AdjDataMesh;
 
 /*
  * gmsh struct
@@ -94,6 +96,26 @@ typedef Flag_Data_Block FlagDataBlockGmsh;
  *     2. comsol mesh file
  */
 int FileProcessMesh(const char *path /*path to mesh file*/, DataMesh *mesh_data /*mesh data*/);
+
+/*
+ * global gmsh file, construct csr adjacency
+ */
+int GlobalGmshCSRAdjGenerator(const DataMeshEle *ele_data /*mesh information*/,
+                              int ne /*number of elements*/,
+                              int nn /*number of nodes*/,
+                              AdjDataMesh *graph_data /*csr graph data*/);
+
+/*
+ * gmsh file to construct csr adjncy, local
+ *     1. mesh topology
+ */
+int GmshCSRAdjGenerator(const DataMeshEle *ele_data /*mesh information*/,
+                        int ne /*number of elements*/,
+                        int nn /*number of nodes*/,
+                        const idx_t *vtxdist /*global nodes array*/,
+                        int my_rank /*current rank*/,
+                        idx_t **xadj /*csr row pointer*/,
+                        idx_t **adjncy /*adjacency nodes list*/);
 
 int TestMetisFunctionGraph(DataGmsh data /*gmsh data*/);
 void GmshCoarseLevelGenerator(DataGmsh *coarse_data /*gmsh coarse level data pointer*/,
