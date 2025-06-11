@@ -59,6 +59,7 @@ int main(int argc, char **argv)
 
         fine_graph_data.nn = mesh_data.nn;
         fine_graph_data.dim = mesh_data.dim;
+        fine_graph_data.nparts = fine_graph_data.nn / 4;
 
         fine_graph_data.coordinates = (double *)malloc(fine_graph_data.dim * fine_graph_data.nn * sizeof(double));
         fine_graph_data.part = (idx_t *)malloc(fine_graph_data.nn * sizeof(idx_t));
@@ -201,7 +202,7 @@ int main(int argc, char **argv)
                 fine_graph_data.part, recvcounts, displs, MPI_BYTE, 0, comm);
 #endif // byte
 
-#if 0
+#if 1
     if (my_rank == 0)
     {
         puts("\nglobal partition value:");
@@ -219,8 +220,163 @@ int main(int argc, char **argv)
     coarse_graph_data.vtxdist = (idx_t *)calloc(nprocs + 1, sizeof(idx_t));
     assert(coarse_graph_data.vtxdist);
 
-    if(my_rank == 0)
-    {}
+    if (my_rank == 0)
+    {
+        CoarseLevelGenerator(&fine_graph_data,
+                             &coarse_graph_data);
+
+#if 1
+        printf("\n>>>>coarse level has %d nodes:\n", coarse_graph_data.nn);
+        for (int index = 0; index < coarse_graph_data.nn; ++index)
+        {
+            printf("coarse node %d:\t", index);
+            for (int index_i = 0; index_i < coarse_graph_data.dim; ++index_i)
+            {
+                printf("%021.16le\t", coarse_graph_data.coordinates[coarse_graph_data.dim * index + index_i]);
+            }
+            putchar('\n');
+        }
+
+        puts("\n>>>>coarse level xadj:");
+        for (int index = 0; index < coarse_graph_data.nn + 1; ++index)
+        {
+            printf("%" PRIDX "\t", coarse_graph_data.xadj[index]);
+        }
+        putchar('\n');
+
+        puts("\n>>>>coarse level adjncy:");
+        for (int index = 0; index < coarse_graph_data.xadj[coarse_graph_data.nn]; ++index)
+        {
+            printf("%" PRIDX "\t", coarse_graph_data.adjncy[index]);
+        }
+        putchar('\n');
+#endif // print coarse_graph_data information
+
+        int base_num = coarse_graph_data.nn / nprocs;
+        int remainder_num = coarse_graph_data.nn % nprocs;
+
+        for (int index_p = 0; index_p < nprocs; ++index_p)
+        {
+            int count = base_num + (index_p < remainder_num ? 1 : 0);
+            coarse_graph_data.vtxdist[index_p + 1] = coarse_graph_data.vtxdist[index_p] + count;
+        }
+
+        local_index_start = coarse_graph_data.xadj[coarse_graph_data.vtxdist[my_rank]];
+        local_index_end = coarse_graph_data.xadj[coarse_graph_data.vtxdist[my_rank + 1]];
+        for (int index_p = 1; index_p < nprocs; ++index_p)
+        {
+            MPI_Send(coarse_graph_data.xadj + coarse_graph_data.vtxdist[index_p],
+                     sizeof(idx_t), MPI_BYTE, index_p, 10, comm); // coarse level local index_start
+            MPI_Send(coarse_graph_data.xadj + coarse_graph_data.vtxdist[index_p + 1],
+                     sizeof(idx_t), MPI_BYTE, index_p, 11, comm); // coarse level local index_end
+        }
+    }
+    else
+    {
+        MPI_Recv(&local_index_start, sizeof(idx_t), MPI_BYTE,
+                 0, 10, comm, MPI_STATUS_IGNORE);
+        MPI_Recv(&local_index_end, sizeof(idx_t), MPI_BYTE,
+                 0, 11, comm, MPI_STATUS_IGNORE);
+    }
+
+    MPI_Bcast(&coarse_graph_data.nn, 1, MPI_INT, 0, comm);
+    MPI_Bcast(coarse_graph_data.vtxdist, (nprocs + 1) * sizeof(idx_t), MPI_BYTE, 0, comm);
+
+    nparts = coarse_graph_data.nn / 4;
+    edgecut = 0;
+    num_local_node = coarse_graph_data.vtxdist[my_rank + 1] - coarse_graph_data.vtxdist[my_rank];
+    nnz_local_node = local_index_end - local_index_start;
+    ncon = 1;
+    numflag = 0;
+    wgtflag = 0;
+    idx_t *coarse_local_part = (idx_t *)malloc(num_local_node * sizeof(idx_t));
+    real_t *coarse_tpwgts = (real_t *)malloc(ncon * nparts * sizeof(real_t));
+    ubvec = 1.05;
+    METIS_SetDefaultOptions(options);
+    assert(coarse_local_part && coarse_tpwgts);
+
+    for (int index = 0; index < ncon * nparts; ++index)
+    {
+        coarse_tpwgts[index] = 1. / ncon / nparts;
+    }
+
+    idx_t *coarse_local_xadj = (idx_t *)malloc((num_local_node + 1) * sizeof(idx_t));
+    idx_t *coarse_local_adjncy = (idx_t *)malloc(nnz_local_node * sizeof(idx_t));
+    assert(coarse_local_xadj && coarse_local_adjncy);
+
+    if (my_rank == 0)
+    {
+        memcpy(coarse_local_xadj, coarse_graph_data.xadj, (num_local_node + 1) * sizeof(idx_t));
+        memcpy(coarse_local_adjncy, coarse_graph_data.adjncy, nnz_local_node * sizeof(idx_t));
+
+        for (int index_p = 1; index_p < nprocs; ++index_p)
+        {
+            idx_t tmp_num_local_node = coarse_graph_data.vtxdist[index_p + 1] - coarse_graph_data.vtxdist[index_p];
+            idx_t tmp_local_index_start = coarse_graph_data.xadj[coarse_graph_data.vtxdist[index_p]];
+            idx_t tmp_local_index_end = coarse_graph_data.xadj[coarse_graph_data.vtxdist[index_p + 1]];
+            idx_t tmp_nnz_local_node = tmp_local_index_end - tmp_local_index_start;
+
+            MPI_Send(coarse_graph_data.xadj + coarse_graph_data.vtxdist[index_p], (tmp_num_local_node + 1) * sizeof(idx_t), MPI_BYTE,
+                     index_p, 1, comm); // xadj data
+            MPI_Send(coarse_graph_data.adjncy + tmp_local_index_start, tmp_nnz_local_node * sizeof(idx_t), MPI_BYTE,
+                     index_p, 2, comm); // adjncy data
+        }
+    }
+    else
+    {
+        MPI_Recv(coarse_local_xadj, (num_local_node + 1) * sizeof(idx_t), MPI_BYTE, 0, 1, comm, MPI_STATUS_IGNORE);
+        MPI_Recv(coarse_local_adjncy, nnz_local_node * sizeof(idx_t), MPI_BYTE, 0, 2, comm, MPI_STATUS_IGNORE);
+    }
+
+    tmp_shift = coarse_local_xadj[0];
+    for (int index = 0; index <= num_local_node; ++index)
+    {
+        coarse_local_xadj[index] -= tmp_shift;
+    }
+
+    int coarse_metis_status = ParMETIS_V3_PartKway(coarse_graph_data.vtxdist,
+                                                   coarse_local_xadj, coarse_local_adjncy,
+                                                   NULL, NULL, &wgtflag, &numflag, &ncon, &nparts,
+                                                   coarse_tpwgts, &ubvec, options,
+                                                   &edgecut, coarse_local_part, &comm);
+
+    int *coarse_recvcounts = NULL, *coarse_displs = NULL;
+    if (my_rank == 0)
+    {
+        coarse_recvcounts = (int *)malloc(nprocs * sizeof(int));
+        coarse_displs = (int *)malloc(nprocs * sizeof(int));
+        assert(coarse_displs && coarse_displs);
+
+        for (int index = 0; index < nprocs; ++index)
+        {
+#if 1
+            coarse_recvcounts[index] = coarse_graph_data.vtxdist[index + 1] - coarse_graph_data.vtxdist[index];
+            coarse_displs[index] = coarse_graph_data.vtxdist[index];
+#endif // int
+#if 0
+            recvcounts[index] = (fine_graph_data.vtxdist[index + 1] - fine_graph_data.vtxdist[index]) * sizeof(idx_t);
+            displs[index] = (fine_graph_data.vtxdist[index]) * sizeof(idx_t);
+#endif // byte
+        }
+    }
+
+#if 1
+    MPI_Gatherv(coarse_local_part, num_local_node, MPI_INT,
+                coarse_graph_data.part, coarse_recvcounts, coarse_displs, MPI_INT, 0, comm);
+#endif // int
+
+#if 1
+    if (my_rank == 0)
+    {
+        puts("\ncoarse global partition value:");
+        for (int index = 0; index < coarse_graph_data.nn; ++index)
+        {
+            printf("part[%d] = %" PRIDX "\n", index, coarse_graph_data.part[index]);
+        }
+
+        puts("\n========\n");
+    }
+#endif // print global partition value, coarse level
 
 #if 0
     for (int index_p = 0; index_p < nprocs; ++index_p)
@@ -265,6 +421,8 @@ int main(int argc, char **argv)
 #endif // print information in rank ascending order
 
     // free memory
+    free(coarse_graph_data.vtxdist);
+
     free(tpwgts);
     free(local_part);
     free(local_xadj);
@@ -272,7 +430,13 @@ int main(int argc, char **argv)
     free(fine_graph_data.vtxdist);
     if (my_rank == 0)
     {
-        // graph
+        // coarse graph
+        free(coarse_graph_data.part);
+        free(coarse_graph_data.adjncy);
+        free(coarse_graph_data.xadj);
+        free(coarse_graph_data.coordinates);
+
+        // fine graph
         free(recvcounts);
         free(displs);
         free(fine_graph_data.part);

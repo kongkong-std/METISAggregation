@@ -1,5 +1,118 @@
 #include "../include/main.h"
 
+int CoarseLevelGenerator(const AdjDataMesh *fine_graph_data /*fine level graph data*/,
+                         AdjDataMesh *coarse_graph_data /*coarse level graph data*/)
+{
+    coarse_graph_data->nn = fine_graph_data->nparts;
+    coarse_graph_data->dim = fine_graph_data->dim;
+    coarse_graph_data->nparts = coarse_graph_data->nn / 4;
+
+    coarse_graph_data->coordinates = (double *)calloc(coarse_graph_data->dim * coarse_graph_data->nn, sizeof(double));
+    assert(coarse_graph_data->coordinates);
+
+    int *cnt_node_partition = (int *)calloc(coarse_graph_data->nn, sizeof(int));
+    assert(cnt_node_partition);
+
+    for (int index = 0; index < fine_graph_data->nn; ++index)
+    {
+        idx_t id_part = fine_graph_data->part[index];
+        for (int index_i = 0; index_i < coarse_graph_data->dim; ++index_i)
+        {
+            coarse_graph_data->coordinates[coarse_graph_data->dim * id_part + index_i] += fine_graph_data->coordinates[fine_graph_data->dim * index + index_i];
+        }
+        ++(cnt_node_partition[id_part]);
+    }
+
+    for (int index = 0; index < coarse_graph_data->nn; ++index)
+    {
+        for (int index_i = 0; index_i < coarse_graph_data->dim; ++index_i)
+        {
+            coarse_graph_data->coordinates[coarse_graph_data->dim * index + index_i] /= cnt_node_partition[index];
+        }
+    }
+
+    // adjacency list generator
+    coarse_graph_data->xadj = (idx_t *)calloc(coarse_graph_data->nn + 1, sizeof(idx_t));
+
+    bool **mat_adj = NULL; // adjacency matrix, coarse.nn x coarse.nn
+    mat_adj = (bool **)malloc(coarse_graph_data->nn * sizeof(bool *));
+    assert(mat_adj);
+
+    for (int index = 0; index < coarse_graph_data->nn; ++index)
+    {
+        mat_adj[index] = (bool *)calloc(coarse_graph_data->nn, sizeof(bool));
+        assert(mat_adj[index]);
+    }
+
+    for (int index = 0; index < fine_graph_data->nn; ++index)
+    {
+        idx_t index_start = fine_graph_data->xadj[index];
+        idx_t index_end = fine_graph_data->xadj[index + 1];
+        for (idx_t index_i = index_start; index_i < index_end; ++index_i)
+        {
+            idx_t fine_node_i = fine_graph_data->adjncy[index_i];
+            idx_t coarse_node_i = fine_graph_data->part[fine_node_i];
+            for (idx_t index_j = index_i + 1; index_j < index_end; ++index_j)
+            {
+                idx_t fine_node_j = fine_graph_data->adjncy[index_j];
+                idx_t coarse_node_j = fine_graph_data->part[fine_node_j];
+
+                mat_adj[coarse_node_i][coarse_node_j] = true;
+                mat_adj[coarse_node_j][coarse_node_i] = true;
+            }
+        }
+    }
+
+    // set mat_adj diagonal to 0
+    for (int index = 0; index < coarse_graph_data->nn; ++index)
+    {
+        mat_adj[index][index] = false;
+    }
+
+    // assign coarse xadj
+    for (int index_i = 0; index_i < coarse_graph_data->nn; ++index_i)
+    {
+        int cnt_tmp = 0;
+        for (int index_j = 0; index_j < coarse_graph_data->nn; ++index_j)
+        {
+            if (mat_adj[index_i][index_j])
+            {
+                ++cnt_tmp;
+            }
+        }
+        coarse_graph_data->xadj[index_i + 1] = coarse_graph_data->xadj[index_i] + cnt_tmp;
+    }
+
+    // assign coarse adjncy
+    coarse_graph_data->adjncy = (idx_t *)malloc(coarse_graph_data->xadj[coarse_graph_data->nn] * sizeof(idx_t));
+    assert(coarse_graph_data->adjncy);
+    int pos_tmp = 0;
+    for (int index_i = 0; index_i < coarse_graph_data->nn; ++index_i)
+    {
+        for (int index_j = 0; index_j < coarse_graph_data->nn; ++index_j)
+        {
+            if (mat_adj[index_i][index_j])
+            {
+                coarse_graph_data->adjncy[pos_tmp] = index_j;
+                ++pos_tmp;
+            }
+        }
+    }
+
+    coarse_graph_data->part = (idx_t *)malloc(coarse_graph_data->nn * sizeof(idx_t));
+    assert(coarse_graph_data->part);
+
+    // free memeory
+    for (int index = 0; index < coarse_graph_data->nn; ++index)
+    {
+        free(mat_adj[index]);
+    }
+    free(mat_adj);
+    free(cnt_node_partition);
+
+    return 0;
+}
+
 static int CountTrueMatAdj(const bool *a, int n)
 {
     int value = 0;
@@ -47,8 +160,8 @@ int GlobalGmshCSRAdjGenerator(const DataMeshEle *ele_data /*mesh information*/,
 
         graph_data->xadj[index + 1] = graph_data->xadj[index] + cnt_tmp;
 
-        adjncy_tmp[index ] = (int *)malloc(cnt_tmp * sizeof(int));
-        adjncy_tmp_len[index ] = cnt_tmp;
+        adjncy_tmp[index] = (int *)malloc(cnt_tmp * sizeof(int));
+        adjncy_tmp_len[index] = cnt_tmp;
         int cnt_adjncy_tmp = 0;
         for (int index_mat_adj_tmp = 0; index_mat_adj_tmp < nn; ++index_mat_adj_tmp)
         {

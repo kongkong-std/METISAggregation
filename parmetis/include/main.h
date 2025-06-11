@@ -90,6 +90,10 @@ typedef enum
 typedef Flag_Data_Block FlagDataBlockGmsh;
 
 // function prototype
+/**/
+int CoarseLevelGenerator(const AdjDataMesh *fine_graph_data /*fine level graph data*/,
+                         AdjDataMesh *coarse_graph_data /*coarse level graph data*/);
+
 /*
  * mesh data file
  *     1. gmsh file
