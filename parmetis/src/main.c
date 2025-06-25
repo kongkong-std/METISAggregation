@@ -69,7 +69,9 @@ int main(int argc, char **argv)
 
         GlobalGmshCSRAdjGenerator(mesh_data.ele_shell, mesh_data.ne_shell, mesh_data.nn, &fine_graph_data);
 
-#if 1
+#if 0
+        puts("\n$Nodes");
+        printf("%d\n", fine_graph_data.nn);
         for (int index = 0; index < fine_graph_data.nn; ++index)
         {
             printf("node %d:\t", index);
@@ -79,20 +81,45 @@ int main(int argc, char **argv)
             }
             putchar('\n');
         }
+        puts("$EndNodes");
 
+        puts("$Vtxdist");
+        printf("%d\n", nprocs + 1);
+        for (int index = 0; index < nprocs + 1; ++index)
+        {
+            printf("%" PRIDX "\n", fine_graph_data.vtxdist[index]);
+        }
+        puts("$EndVtxdist");
+
+#if 0
         puts("\n\nfine_graph_data xadj value:");
         for (int index = 0; index < fine_graph_data.nn + 1; ++index)
         {
             printf("%" PRIDX "\t", fine_graph_data.xadj[index]);
         }
         putchar('\n');
+#endif // xadj
 
-        puts("\n\nfine_graph_data adjncy value:");
+        puts("$Adjacency");
+        printf("%d\n", fine_graph_data.nn);
+        for (int index = 0; index < fine_graph_data.nn; ++index)
+        {
+            idx_t index_start = fine_graph_data.xadj[index],
+                  index_end = fine_graph_data.xadj[index + 1];
+            for (idx_t index_tmp = index_start; index_tmp < index_end; ++index_tmp)
+            {
+                printf("%" PRIDX "\t", fine_graph_data.adjncy[index_tmp]);
+            }
+            putchar('\n');
+        }
+        puts("$EndAdjacency");
+#if 0
         for (int index = 0; index < fine_graph_data.xadj[fine_graph_data.nn]; ++index)
         {
             printf("%" PRIDX "\t", fine_graph_data.adjncy[index]);
         }
         putchar('\n');
+#endif // adjncy
 #endif // fine_graph_data coordinates
 
         local_index_start = fine_graph_data.xadj[fine_graph_data.vtxdist[my_rank]];
@@ -202,16 +229,24 @@ int main(int argc, char **argv)
                 fine_graph_data.part, recvcounts, displs, MPI_BYTE, 0, comm);
 #endif // byte
 
-#if 1
+#if 0
     if (my_rank == 0)
     {
-        puts("\nglobal partition value:");
+        puts("$PartitionID");
+        printf("%" PRIDX "\n", fine_graph_data.nparts);
+        for (idx_t index = 0; index < fine_graph_data.nparts; ++index)
+        {
+            printf("%" PRIDX "\n", index);
+        }
+        puts("$EndPartitionID");
+
+        puts("$Partition");
+        printf("%d\n", fine_graph_data.nn);
         for (int index = 0; index < fine_graph_data.nn; ++index)
         {
-            printf("part[%d] = %" PRIDX "\n", index, fine_graph_data.part[index]);
+            printf("%" PRIDX "\n", fine_graph_data.part[index]);
         }
-
-        puts("\n========\n");
+        puts("$EndPartition");
     }
 #endif // print global partition value
 
@@ -224,33 +259,6 @@ int main(int argc, char **argv)
     {
         CoarseLevelGenerator(&fine_graph_data,
                              &coarse_graph_data);
-
-#if 1
-        printf("\n>>>>coarse level has %d nodes:\n", coarse_graph_data.nn);
-        for (int index = 0; index < coarse_graph_data.nn; ++index)
-        {
-            printf("coarse node %d:\t", index);
-            for (int index_i = 0; index_i < coarse_graph_data.dim; ++index_i)
-            {
-                printf("%021.16le\t", coarse_graph_data.coordinates[coarse_graph_data.dim * index + index_i]);
-            }
-            putchar('\n');
-        }
-
-        puts("\n>>>>coarse level xadj:");
-        for (int index = 0; index < coarse_graph_data.nn + 1; ++index)
-        {
-            printf("%" PRIDX "\t", coarse_graph_data.xadj[index]);
-        }
-        putchar('\n');
-
-        puts("\n>>>>coarse level adjncy:");
-        for (int index = 0; index < coarse_graph_data.xadj[coarse_graph_data.nn]; ++index)
-        {
-            printf("%" PRIDX "\t", coarse_graph_data.adjncy[index]);
-        }
-        putchar('\n');
-#endif // print coarse_graph_data information
 
         int base_num = coarse_graph_data.nn / nprocs;
         int remainder_num = coarse_graph_data.nn % nprocs;
@@ -368,6 +376,76 @@ int main(int argc, char **argv)
 #if 1
     if (my_rank == 0)
     {
+#if 1
+        puts("$Nodes");
+        printf("%d\n", coarse_graph_data.nn);
+        for (int index = 0; index < coarse_graph_data.nn; ++index)
+        {
+            printf("node %d:\t", index);
+            for (int index_i = 0; index_i < coarse_graph_data.dim; ++index_i)
+            {
+                printf("%021.16le\t", coarse_graph_data.coordinates[coarse_graph_data.dim * index + index_i]);
+            }
+            putchar('\n');
+        }
+        puts("$EndNodes");
+
+        puts("$Vtxdist");
+        printf("%d\n", nprocs + 1);
+        for (int index = 0; index < nprocs + 1; ++index)
+        {
+            printf("%" PRIDX "\n", coarse_graph_data.vtxdist[index]);
+        }
+        puts("$EndVtxdist");
+
+        puts("$Adjacency");
+        printf("%d\n", coarse_graph_data.nn);
+        for (int index = 0; index < coarse_graph_data.nn; ++index)
+        {
+            idx_t index_start = coarse_graph_data.xadj[index],
+                  index_end = coarse_graph_data.xadj[index + 1];
+            for (idx_t index_tmp = index_start; index_tmp < index_end; ++index_tmp)
+            {
+                printf("%" PRIDX "\t", coarse_graph_data.adjncy[index_tmp]);
+            }
+            putchar('\n');
+        }
+        puts("$EndAdjacency");
+
+        puts("$PartitionID");
+        printf("%d\n", coarse_graph_data.nparts);
+        for (idx_t index = 0; index < coarse_graph_data.nparts; ++index)
+        {
+            printf("%" PRIDX "\n", index);
+        }
+        puts("$EndPartitionID");
+
+        puts("$Partition");
+        printf("%d\n", coarse_graph_data.nn);
+        for (int index = 0; index < coarse_graph_data.nn; ++index)
+        {
+            printf("%" PRIDX "\n", coarse_graph_data.part[index]);
+        }
+        puts("$EndPartition");
+
+#if 0
+        puts("\n>>>>coarse level xadj:");
+        for (int index = 0; index < coarse_graph_data.nn + 1; ++index)
+        {
+            printf("%" PRIDX "\t", coarse_graph_data.xadj[index]);
+        }
+        putchar('\n');
+
+        puts("\n>>>>coarse level adjncy:");
+        for (int index = 0; index < coarse_graph_data.xadj[coarse_graph_data.nn]; ++index)
+        {
+            printf("%" PRIDX "\t", coarse_graph_data.adjncy[index]);
+        }
+        putchar('\n');
+#endif // xadj, adjncy
+#endif // print coarse_graph_data information
+
+#if 0
         puts("\ncoarse global partition value:");
         for (int index = 0; index < coarse_graph_data.nn; ++index)
         {
@@ -375,7 +453,9 @@ int main(int argc, char **argv)
         }
 
         puts("\n========\n");
+#endif // partition
     }
+
 #endif // print global partition value, coarse level
 
 #if 0
